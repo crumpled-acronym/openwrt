@@ -1,5 +1,7 @@
---- a/arch/mips/lantiq/irq.c	2019-01-30 02:20:35.739994259 +0100
-+++ b/arch/mips/lantiq/irq.c	2019-01-30 04:30:31.152538191 +0100
+Index: linux-4.19.65/arch/mips/lantiq/irq.c
+===================================================================
+--- linux-4.19.65.orig/arch/mips/lantiq/irq.c
++++ linux-4.19.65/arch/mips/lantiq/irq.c
 @@ -49,8 +49,8 @@
   */
  #define LTQ_ICU_EBU_IRQ		22
@@ -63,7 +65,7 @@
  static int ltq_perfcount_irq;
  
  int ltq_eiu_get_irq(int exin)
-@@ -81,9 +120,14 @@
+@@ -81,9 +120,14 @@ void ltq_disable_irq(struct irq_data *d)
  	u32 ier = LTQ_ICU_IM0_IER;
  	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
  	int im = offset / INT_NUM_IM_OFFSET;
@@ -80,7 +82,7 @@
  }
  
  void ltq_mask_and_ack_irq(struct irq_data *d)
-@@ -92,10 +136,16 @@
+@@ -92,10 +136,16 @@ void ltq_mask_and_ack_irq(struct irq_dat
  	u32 isr = LTQ_ICU_IM0_ISR;
  	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
  	int im = offset / INT_NUM_IM_OFFSET;
@@ -99,7 +101,7 @@
  }
  EXPORT_SYMBOL(ltq_mask_and_ack_irq);
  
-@@ -104,24 +154,43 @@
+@@ -104,24 +154,43 @@ static void ltq_ack_irq(struct irq_data
  	u32 isr = LTQ_ICU_IM0_ISR;
  	int offset = d->hwirq - MIPS_CPU_IRQ_CASCADE;
  	int im = offset / INT_NUM_IM_OFFSET;
@@ -145,21 +147,21 @@
  
  	for (i = 0; i < exin_avail; i++) {
  		if (d->hwirq == ltq_eiu_irq[i]) {
-@@ -158,8 +227,11 @@
+@@ -157,10 +226,12 @@ static int ltq_eiu_settype(struct irq_da
+ 
  			if (edge)
  				irq_set_handler(d->hwirq, handle_edge_irq);
- 
--			ltq_eiu_w32(ltq_eiu_r32(LTQ_EIU_EXIN_C) |
--				(val << (i * 4)), LTQ_EIU_EXIN_C);
+-
 +			// v3.10 kernel has this atomic for SMP
 +			spin_lock_irqsave(&ltq_eiu_lock, flags);
-+			ltq_eiu_w32((ltq_eiu_r32(LTQ_EIU_EXIN_C) & (~ (val << (i * 4)))) |
-+					(val << (i * 4)), LTQ_EIU_EXIN_C);
+ 			ltq_eiu_w32((ltq_eiu_r32(LTQ_EIU_EXIN_C) &
+ 				    (~(7 << (i * 4)))) | (val << (i * 4)),
+ 				    LTQ_EIU_EXIN_C);
 +			spin_unlock_irqrestore(&ltq_eiu_lock, flags);
  		}
  	}
  
-@@ -203,6 +275,36 @@
+@@ -204,6 +275,36 @@ static void ltq_shutdown_eiu_irq(struct
  	}
  }
  
@@ -196,7 +198,7 @@
  static struct irq_chip ltq_irq_type = {
  	.name = "icu",
  	.irq_enable = ltq_enable_irq,
-@@ -211,6 +313,9 @@
+@@ -212,6 +313,9 @@ static struct irq_chip ltq_irq_type = {
  	.irq_ack = ltq_ack_irq,
  	.irq_mask = ltq_disable_irq,
  	.irq_mask_ack = ltq_mask_and_ack_irq,
@@ -206,7 +208,7 @@
  };
  
  static struct irq_chip ltq_eiu_type = {
-@@ -231,8 +336,10 @@
+@@ -232,8 +336,10 @@ static void ltq_hw_irq_handler(struct ir
  	int module = irq_desc_get_irq(desc) - 2;
  	u32 irq;
  	int hwirq;
@@ -218,7 +220,7 @@
  	if (irq == 0)
  		return;
  
-@@ -275,29 +382,60 @@
+@@ -276,29 +382,60 @@ static const struct irq_domain_ops irq_d
  int __init icu_of_init(struct device_node *node, struct device_node *parent)
  {
  	struct device_node *eiu_node;
@@ -237,7 +239,8 @@
  					res.name))
 -			pr_err("Failed to request icu memory");
 +			pr_err("Failed to request icu0 memory");
-+
+ 
+-		ltq_icu_membase[i] = ioremap_nocache(res.start,
 +	if (of_node_cmp(node->name, "icu0") == 0) {
 +			ltq_icu_membase[0][i] = ioremap_nocache(res.start,
 +				resource_size(&res));
@@ -253,8 +256,7 @@
 +	for (i = 0; i < MAX_IM; i++) {
 +		if (of_address_to_resource(icu1_node, i, &res))
 +			panic("Failed to get icu1 memory range");
- 
--		ltq_icu_membase[i] = ioremap_nocache(res.start,
++
 +		if (request_mem_region(res.start, resource_size(&res),
 +					res.name) < 0)
 +			pr_err("Failed to request icu1 memory");
