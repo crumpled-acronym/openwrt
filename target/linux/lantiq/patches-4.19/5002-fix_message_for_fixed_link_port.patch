@@ -1,16 +1,18 @@
---- a/drivers/net/ethernet/lantiq_xrx200.c
-+++ b/drivers/net/ethernet/lantiq_xrx200.c
-@@ -1762,6 +1762,7 @@ static void xrx200_of_port(struct xrx200
- 		return;
+Index: linux-4.19.67/drivers/net/ethernet/lantiq_xrx200.c
+===================================================================
+--- linux-4.19.67.orig/drivers/net/ethernet/lantiq_xrx200.c
++++ linux-4.19.67/drivers/net/ethernet/lantiq_xrx200.c
+@@ -2436,6 +2436,7 @@ static int xrx200_of_port(struct xrx200_
+ 		return -ENOMEM;
+ 	}
  
- 	memset(p, 0, sizeof(struct xrx200_port));
 +	p->num = *id;
  	p->phy_node = of_parse_phandle(port, "phy-handle", 0);
  
  	if (!p->phy_node && of_phy_is_fixed_link(port)) {
-@@ -1778,7 +1779,6 @@ static void xrx200_of_port(struct xrx200
- 	if (!addr)
- 		return;
+@@ -2456,7 +2457,6 @@ static int xrx200_of_port(struct xrx200_
+ 		return -EINVAL;
+ 	}
  
 -	p->num = *id;
  	p->phy_addr = *addr;
