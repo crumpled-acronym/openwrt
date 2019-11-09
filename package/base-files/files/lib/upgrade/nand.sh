@@ -10,13 +10,8 @@ CI_KERNPART="${CI_KERNPART:-kernel}"
 # 'ubi' partition on NAND contains UBI
 CI_UBIPART="${CI_UBIPART:-ubi}"
 
-# <<<<<<<
 # 'rootfs' partition on NAND contains the rootfs
 CI_ROOTPART="${CI_ROOTPART:-rootfs}"
-# =======
-# VID header offset is used e.g. to ignore sub pages by setting them to 2048
-CU_UBI_VID_HEADER_OFFSET=""
-# >>>>>>>
 
 ubi_mknod() {
 	local dir="$1"
