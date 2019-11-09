@@ -20,6 +20,10 @@ else
   UBIFS_OPTS := -m 2048 -e 126KiB -c 4096
 endif
 
+define Build/append-avm-fakeroot
+	cat ./eva.dummy.squashfs >> $@
+endef
+
 define Build/append-uImage-rootfs
 	mkimage -A mips -O linux -C none -T filesystem  \
 		-n 'OpenWRT RootFS' \
@@ -33,10 +37,6 @@ define Build/append-uImage-dummyrootfs
 		-n 'OpenWRT dummy RootFS' \
 	-d $@.dummyrootfs $@.mkimage
 	cat $@.mkimage >> $@
-endef
-
-define Build/append-avm-fakeroot
-	cat ./eva.dummy.squashfs >> $@
 endef
 
 define Build/dgn3500-sercom-footer
@@ -729,35 +729,29 @@ define Device/arcadyan_vgv7519-nor
 endef
 TARGET_DEVICES += arcadyan_vgv7519-nor
 
-#define Device/arcadyan_vgv952cjw33-e-ir-smp
-define Device/lantiq_vgv952cjw33-e-ir
+define Device/arcadyan_vgv952cjw33-e-ir
   $(Device/NAND)
   DEVICE_VENDOR := Arcadyan
   DEVICE_MODEL := VGV952CJW33-E-IR
-  DEVICE_VARIANT := SMP
   DEVICE_ALT0_VENDOR := Vodafone
   DEVICE_ALT0_MODEL := Easybox 904xDSL
-  DEVICE_ALT0_VARIANT := SMP
+  DEVICE_DTS := VGV952CJW33-E-IR
+  SUPPORTED_DEVICES += VGV952CJW33-E-IR
+  IMAGES := sysupgrade.bin
+  KERNEL_INITRAMFS := kernel-bin | append-dtb | lzma | uImage lzma | pad-offset 16 0 | append-uImage-dummyrootfs
+endef
+
+define Device/arcadyan_vgv952cjw33-e-ir-vpe
+  $(Device/arcadyan_vgv952cjw33-e-ir)
+  DEVICE_VARIANT := VPE
+  DEVICE_ALT0_VARIANT := vpe
   DEVICE_DTS := VGV952CJW33-E-IR
   DEVICE_PACKAGES := kmod-usb-dwc2 kmod-ltq-tapi kmod-ltq-vmmc wpad-basic
   SUPPORTED_DEVICES += VGV952CJW33-E-IR
-  # If the rootfs/squashfs should be placed in mtd1: flashing can be done with the reset-button-during-
-  # power-on recovery procedure using fullimage.img, or with sysupgrade procedure using sysupgrade.bin.
-  # In the .dts file, partition mtd1 MUST be named 'rootfs', and partition mtd12 MUST NOT be named 'ubi'.
-  #IMAGES := sysupgrade.bin fullimage.img
-  #IMAGE/fullimage.img := append-uImage-rootfs | pad-offset 16 0 | append-kernel
-  # If the rootfs/squashfs should be placed in an UBI volume in mtd12:
-  # flashing can be done with the sysupgrade procedure.
-  # In the .dts file, partition mtd1 MUST NOT be named 'rootfs', and partition mtd12 MUST be named 'ubi'.
   IMAGES := sysupgrade.bin
-  # Generate an initramfs file containing an additional dummy squashfs image. This way the original vendor U-Boot
-  # can flash it to the mtd2 kernel partition via the reset-button-press-during-power-on recovery procedure
-  # if 1) size is max 0x500000 bytes and 2) the initramfs file is manually renamed to fullimage.img.
-  # BTW: the uboot-lantiq-easybox904xdsl U-Boot allows larger sizes and starts the initramfs directly without flashing.
   KERNEL_INITRAMFS := kernel-bin | append-dtb | lzma | uImage lzma | pad-offset 16 0 | append-uImage-dummyrootfs
- #KERNEL_INITRAMFS := kernel-bin | append-dtb | lzma | uImage lzma | pad-offset 16 0 | append-uImage-dummyrootfs | check-size 0x500000
 endef
-TARGET_DEVICES += lantiq_vgv952cjw33-e-ir
+TARGET_DEVICES += arcadyan_vgv952cjw33-e-ir-vpe
 
 define Device/avm_fritz3370
   $(Device/AVM)
