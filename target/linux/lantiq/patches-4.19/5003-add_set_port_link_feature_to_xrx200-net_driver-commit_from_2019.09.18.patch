@@ -1,0 +1,68 @@
+diff -aurN a/drivers/net/ethernet/lantiq_xrx200.c b/drivers/net/ethernet/lantiq_xrx200.c
+--- a/drivers/net/ethernet/lantiq_xrx200.c	2019-11-05 00:45:43.000000000 +0100
++++ b/drivers/net/ethernet/lantiq_xrx200.c	2019-11-12 18:47:00.000000000 +0100
+@@ -439,6 +439,7 @@
+ 	struct xrx200_iface *port_map[XRX200_MAX_PORT];
+ 
+ 	struct mii_bus *mii_bus;
++	u8 phy_addr[XRX200_MAX_PORT];
+ 
+ 	struct switch_dev swdev;
+ };
+@@ -983,6 +984,35 @@
+ 	return 0;
+ }
+ 
++static int xrx200sw_set_port_link(struct switch_dev *dev, int port,
++				struct switch_port_link *link)
++{
++	if (port >= XRX200_MAX_PORT)
++		return -EINVAL;
++
++	return switch_generic_set_link(dev, port, link);
++}
++
++static int xrx200_mdio_wr(struct mii_bus *bus, int addr, int reg, u16 val);
++static int xrx200_mdio_rd(struct mii_bus *bus, int addr, int reg);
++
++static int xrx200sw_phy_read16(struct switch_dev *dev, int addr, u8 reg, u16 *value)
++{
++	struct xrx200_priv *hw = container_of(dev, struct xrx200_priv, swdev);
++
++	*value =  xrx200_mdio_rd(hw->mii_bus, hw->phy_addr[addr], reg);
++
++	return 0;
++}
++
++static int xrx200sw_phy_write16(struct switch_dev *dev, int addr, u8 reg, u16 value)
++{
++	struct xrx200_priv *hw = container_of(dev, struct xrx200_priv, swdev);
++
++	return xrx200_mdio_wr(hw->mii_bus, hw->phy_addr[addr], reg, value);
++}
++
++
+ static int xrx200_set_port_attr(struct switch_dev *dev, const struct switch_attr *attr, struct switch_val *val)
+ {
+ 	if (val->port_vlan >= XRX200_MAX_PORT)
+@@ -1087,7 +1117,10 @@
+ 	.get_port_pvid = xrx200sw_get_port_pvid,
+ 	.reset_switch = xrx200sw_reset_switch,
+ 	.get_port_link = xrx200sw_get_port_link,
++	.set_port_link = xrx200sw_set_port_link,
+ //	.get_port_stats = xrx200sw_get_port_stats, //TODO
++	.phy_read16 = xrx200sw_phy_read16,
++	.phy_write16 = xrx200sw_phy_write16,
+ };
+ 
+ static int xrx200sw_init(struct xrx200_iface *iface)
+@@ -2502,6 +2535,9 @@
+ 
+ 	/* store the port id in the hw struct so we can map ports -> devices */
+ 	priv->port_map[p->num] = iface;
++	
++	/* store the phy addr in the hw struct so we can map ports -> phys */
++	priv->phy_addr[p->num] = p->phy_addr;
+ 
+ 	list_add(&p->port, &iface->ports);
+ 
